@@ -1,0 +1,47 @@
+{
+  "name": "crypto-wallet",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint"
+  },
+  "dependencies": {
+    "@moralisweb3/next": "^2.27.2",
+    "@radix-ui/react-slot": "^1.1.0",
+    "@rainbow-me/rainbowkit": "^2.2.1",
+    "@tanstack/react-query": "^5.62.3",
+    "@tanstack/react-table": "^8.20.5",
+    "axios": "^1.7.9",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "dnum": "^2.14.0",
+    "ethers": "^5.7.2",
+    "lucide-react": "^0.466.0",
+    "moralis": "^2.27.2",
+    "next": "15.0.4",
+    "next-auth": "^4.24.11",
+    "next-themes": "^0.4.4",
+    "qrcode.react": "^4.1.0",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "react-icons": "^5.4.0",
+    "sonner": "^1.7.1",
+    "use-debounce": "^10.0.4",
+    "viem": "~2.21.54",
+    "wagmi": "^2.13.4"
+  },
+  "devDependencies": {
+    "@tanstack/eslint-plugin-query": "^5.62.1",
+    "@types/node": "^20",
+    "@types/react": "^18",
+    "@types/react-dom": "^18",
+    "eslint": "^8",
+    "eslint-config-next": "15.0.3",
+    "postcss": "^8",
+    "tailwindcss": "^3.4.1",
+    "typescript": "^5"
+  }
+}
