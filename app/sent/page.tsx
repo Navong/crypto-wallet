@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Header } from '@/components/Header';
-import { ArrowLeft, Info } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import { FormEvent } from 'react';
 import { type Hex, parseEther } from 'viem';
@@ -13,47 +13,92 @@ import { AiOutlineLoading3Quarters } from 'react-icons/ai';
 import { useAccountContext } from '../AccountContext';
 import { Address } from "viem";
 
+interface AddressHistoryItem {
+    id: string;
+    address: string;
+    amount: string;
+    timestamp: string;
+}
+
 
 export default function SendPage() {
     const { account: address, chainId } = useAccountContext();
-    const { data: availableBalance, isError, isLoading, refetch } = useBalance({
+
+
+    const [addressHistory, setAddressHistory] = useState<AddressHistoryItem[]>(() => []);
+    const { data: availableBalance, refetch } = useBalance({
         address: address as Address,
     });
-
 
     const [formData, setFormData] = useState({
         recipient: '',
         amount: '',
-        gasLimit: '21000',
-        gasPrice: '50',
     });
+
 
     const { data: hash, error, isPending, sendTransaction } = useSendTransaction();
 
-    async function handleSubmit(e: FormEvent<HTMLFormElement>) {
+
+    // Load address history on component mount
+    useEffect(() => {
+        const savedAddresses = JSON.parse(localStorage.getItem('addressHistory') || '[]');
+        setAddressHistory(savedAddresses);
+    }, []);
+
+    // Save a new recipient address to localStorage
+    const saveAddressToHistory = (address: string) => {
+        const updatedHistory = Array.from(new Set([{ id: Date.now().toString(), address, amount: '', timestamp: new Date().toISOString() }, ...addressHistory.filter(item => item.address !== address)])).slice(0, 5); // Keep unique, last 5 addresses
+        localStorage.setItem('addressHistory', JSON.stringify(updatedHistory));
+        setAddressHistory(updatedHistory);
+    };
+
+    const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         const { recipient, amount } = formData;
-        sendTransaction({ to: recipient as Hex, value: parseEther(amount) });
-    }
+
+        try {
+            await sendTransaction({ to: recipient as Hex, value: parseEther(amount) });
+            saveAddressToHistory(recipient); // Save recipient to history after successful submission
+        } catch (error) {
+            console.error('Transaction failed:', error);
+        }
+    };
+
 
     const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({
         hash,
     });
 
-    console.log({ hash, isConfirming, isConfirmed });
-
-    const [showAdvanced, setShowAdvanced] = useState(false);
+    const chainIdToExplorer = {
+        1: "https://etherscan.io", // Ethereum Mainnet
+        5: "https://goerli.etherscan.io", // Goerli Testnet
+        11155111: "https://sepolia.etherscan.io", // Sepolia Testnet
+        56: "https://bscscan.com", // Binance Smart Chain Mainnet
+        97: "https://testnet.bscscan.com", // Binance Smart Chain Testnet
+        // Add other chains as needed
+        43114: "https://snowtrace.io", // Avalanche C-Chain Mainnet
+        17000: "https://holesky.etherscan.io", // Holesky Testnet
+    };
 
 
     // toast
     useEffect(() => {
         if (isConfirmed) {
+
+
+
             toast("", {
                 description: (
                     <div className="items-center gap-2 cursor-pointer hover:text-[#39A6FF] px-2">
                         <div className="text-white font-semibold">Transaction confirmed</div>
-                        <div className="py-1 flex gap-2" onClick={() => window.open(`https://sepolia.etherscan.io/tx/${hash}`)}>
-                            <div>View on sepolia.etherscan.io</div>
+                        <div
+                            className="py-1 flex gap-2"
+                            onClick={() => {
+                                const explorerBaseUrl = chainId ? chainIdToExplorer[chainId as keyof typeof chainIdToExplorer] || "https://etherscan.io" : "https://etherscan.io";
+                                window.open(`${explorerBaseUrl}/tx/${hash}`);
+                            }}
+                        >
+                            <div>View on {chainIdToExplorer[chainId as keyof typeof chainIdToExplorer]?.replace("https://", "") || "etherscan.io"}</div>
                             <FaExternalLinkAlt size={14} />
                         </div>
                     </div>
@@ -84,15 +129,17 @@ export default function SendPage() {
                 description: (
                     <div className="items-center gap-2 cursor-pointer hover:text-[#39A6FF] px-2">
                         <div className="text-white font-semibold">Confirming transaction</div>
-                        <div className="py-1 flex gap-2" onClick={() => window.open(`https://sepolia.etherscan.io/tx/${hash}`)}>
-                            <div>View on sepolia.etherscan.io</div>
+                        <div
+                            className="py-1 flex gap-2"
+                            onClick={() => {
+                                const explorerBaseUrl = chainId ? chainIdToExplorer[chainId as keyof typeof chainIdToExplorer] || "https://etherscan.io" : "https://etherscan.io";
+                                window.open(`${explorerBaseUrl}/tx/${hash}`);
+                            }}
+                        >
+                            <div>View on {chainIdToExplorer[chainId as keyof typeof chainIdToExplorer]?.replace("https://", "") || "etherscan.io"}</div>
                             <FaExternalLinkAlt size={13} />
                         </div>
-                        {/* <button className={styles.headlessClose} onClick={() => toast.dismiss(toastId)}>
-                            <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor">
-                                <path d="M2.96967 2.96967C3.26256 2.67678 3.73744 2.67678 4.03033 2.96967L8 6.939L11.9697 2.96967C12.2626 2.67678 12.7374 2.67678 13.0303 2.96967C13.3232 3.26256 13.3232 3.73744 13.0303 4.03033L9.061 8L13.0303 11.9697C13.2966 12.2359 13.3208 12.6526 13.1029 12.9462L13.0303 13.0303C12.7374 13.3232 12.2626 13.3232 11.9697 13.0303L8 9.061L4.03033 13.0303C3.73744 13.3232 3.26256 13.3232 2.96967 13.0303C2.67678 12.7374 2.67678 12.2626 2.96967 11.9697L6.939 8L2.96967 4.03033C2.7034 3.76406 2.6792 3.3474 2.89705 3.05379L2.96967 2.96967Z"></path>
-                            </svg>
-                        </button> */}
+
                     </div>
                 ),
                 duration: Infinity,
@@ -113,6 +160,9 @@ export default function SendPage() {
             }
         };
     }, [isConfirming, isConfirmed]);
+
+
+  
 
     return (
         <div className="min-h-screen bg-gray-900">
@@ -136,32 +186,42 @@ export default function SendPage() {
                                     type="text"
                                     value={formData.recipient}
                                     onChange={(e) => setFormData({ ...formData, recipient: e.target.value })}
+                                    list="address-history" // Add this for the datalist
                                     className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg
                                         focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500
                                         text-gray-100 placeholder-gray-400"
                                     placeholder="0x..."
                                     required
                                 />
+                                <datalist id="address-history">
+                                    {addressHistory.map((address, index) => (
+                                        <option key={index} value={address.address} />
+                                    ))}
+                                </datalist>
                             </div>
 
                             <div>
                                 <label className="block text-sm font-medium text-gray-300 mb-2">
-                                    Amount ({availableBalance?.symbol})
+                                    Amount
                                 </label>
-                                <div className="relative">
+
+                                <div className='relative'>
                                     <input
                                         type="number"
                                         value={formData.amount}
                                         onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
                                         className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg
-                                            focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500
-                                            text-gray-100 placeholder-gray-400"
+                                focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500
+                                text-gray-100 placeholder-gray-400"
                                         placeholder="0.0"
                                         step="0.000001"
                                         required
                                     />
                                     <div className="absolute right-3 top-3 text-gray-400 pr-6">{availableBalance?.symbol}</div>
+
                                 </div>
+
+
                                 <div className="mt-2 text-sm text-gray-400">
                                     Available balance: {availableBalance?.formatted} {availableBalance?.symbol}
                                 </div>
@@ -177,7 +237,7 @@ export default function SendPage() {
                             </button>
                         </form>
 
-                        {hash && <div className="mt-4 text-sm text-gray-300">Transaction Hash: {hash}</div>}
+                        {/* {hash && <div className="mt-4 text-sm text-gray-300">Transaction Hash: {hash}</div>} */}
                         {isConfirming && <div className="mt-4 text-sm text-gray-300">Waiting for confirmation...</div>}
                         {isConfirmed && <div className="mt-4 text-sm text-green-400">Transaction confirmed.</div>}
                         {error && (

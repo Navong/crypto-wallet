@@ -9,7 +9,7 @@ import { useAccountContext } from '../AccountContext';
 
 export default function ReceivePage() {
     const [copied, setCopied] = useState(false);
-    const { account: address, chainId } = useAccountContext();
+    const { account: address } = useAccountContext();
 
     const handleCopy = async () => {
         try {
@@ -24,6 +24,7 @@ export default function ReceivePage() {
             console.error('Failed to copy:', err);
         }
     };
+
 
     return (
         <div className="min-h-screen bg-gray-900">

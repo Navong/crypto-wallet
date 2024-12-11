@@ -5,6 +5,8 @@ interface AccountContextProps {
   chainId: number | null;
   setChain: (chainId: number | null) => void;
   setAccount: (account: string | null) => void;
+  disconnected: boolean;
+  setDisconnected: (disconnected: boolean) => void;
 }
 
 const AccountContext = createContext<AccountContextProps | undefined>(undefined);
@@ -12,9 +14,10 @@ const AccountContext = createContext<AccountContextProps | undefined>(undefined)
 export const AccountProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [account, setAccount] = useState<string | null>(null);
   const [chainId, setChain] = useState<number | null>(null);
+  const [disconnected, setDisconnected] = useState<boolean>(true);
 
   return (
-    <AccountContext.Provider value={{ account, setAccount, chainId, setChain }}>
+    <AccountContext.Provider value={{ account, setAccount, chainId, setChain, disconnected, setDisconnected }}>
       {children}
     </AccountContext.Provider>
   );

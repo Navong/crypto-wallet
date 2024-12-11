@@ -5,19 +5,19 @@ interface Token {
     symbol: string;
     name: string;
     logo: string;
-    thumbnail: string;
-    decimals: string;
+    thumbnail?: string;
+    decimals: number;
     balance: string;
-    possible_spam: string;
-    verified_contract: boolean;
-    balance_formatted: string;
+    possible_spam: boolean;
+    verified_contract?: boolean;
+    balance_formatted?: string;
     usd_price: number;
-    usd_price_24hr_percent_change: number;
-    usd_price_24hr_usd_change: number;
-    usd_value: number;
-    usd_value_24hr_usd_change: number;
-    native_token: boolean;
-    portfolio_percentage: number;
+    usd_price_24hr_percent_change?: number;
+    usd_price_24hr_usd_change?: string;
+    usd_value?: number;
+    usd_value_24hr_usd_change?: string;
+    native_token?: boolean;
+    portfolio_percentage?: number;
 }
 
 interface TokenListProps {
@@ -31,7 +31,7 @@ const TokenList: React.FC<TokenListProps> = ({ tokens }) => {
                 <h2 className="text-white text-lg font-semibold">Tokens</h2>
                 <div className="grid grid-cols-1 gap-4 mt-2">
                     {tokens.map((token) => {
-                        const balanceInUSD = token.usd_price * parseFloat(token.balance_formatted);
+                        const balanceInUSD = token.usd_price * parseFloat(token.balance_formatted ?? '0');
                         return token.logo && (
                             <div key={token.token_address} className="bg-gray-700 p-4 rounded-lg">
                                 <div className="flex items-center mt-2 font-mono text-lg">

@@ -5,7 +5,6 @@ import { WalletCard } from "../components/WalletCard";
 import { useAccount, useBalance } from "wagmi";
 import { useEffect, useState, useMemo } from "react";
 import Moralis from "moralis";
-import TokenList from "@/components/TokenList";
 import { useAccountContext } from "./AccountContext";
 import { Address } from "viem";
 
@@ -14,30 +13,34 @@ interface Token {
   symbol: string;
   name: string;
   logo: string;
-  thumbnail: string;
-  decimals: string;
+  thumbnail?: string;
+  decimals: number;
   balance: string;
-  possible_spam: string;
-  verified_contract: boolean;
-  balance_formatted: string;
+  possible_spam: boolean;
+  verified_contract?: boolean;
+  balance_formatted?: string;
   usd_price: number;
-  usd_price_24hr_percent_change: number;
-  usd_price_24hr_usd_change: number;
-  usd_value: number;
-  usd_value_24hr_usd_change: number;
-  native_token: boolean;
-  portfolio_percentage: number;
+  usd_price_24hr_percent_change?: number;
+  usd_price_24hr_usd_change?: string;
+  usd_value?: number;
+  usd_value_24hr_usd_change?: string;
+  native_token?: boolean;
+  portfolio_percentage?: number;
 }
 
 export default function Home() {
   const { isConnected } = useAccount();
-  const { account: address, chainId } = useAccountContext();
+  const { account: address, chainId: rawChainId } = useAccountContext();
+  const chainId = rawChainId ?? undefined;
+  const [tokenUsd, setTokenUsd] = useState<string | undefined>();
 
   const formattedChainId = chainId ? `0x${parseInt(chainId.toString()).toString(16)}` : null;
 
-  const [tokens, setTokens] = useState<Token[]>([]);
+  // const [tokens, setTokens] = useState<Token[]>([]);
 
-  const { data: balanceData, isError, isLoading } = useBalance({
+
+
+  const { data, isError, isLoading, refetch } = useBalance({
     address: address as Address,
   });
 
@@ -50,7 +53,7 @@ export default function Home() {
       try {
         if (!Moralis.Core.isStarted) {
           await Moralis.start({
-            apiKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJub25jZSI6IjQyZTc1ZmE5LWU4OTEtNDA0Yy05MjczLTU3MjFjNjZlYmRjZSIsIm9yZ0lkIjoiNDE5ODEyIiwidXNlcklkIjoiNDMxNzMyIiwidHlwZUlkIjoiMTJhZjBhYmUtZjI3My00Y2YxLWEwZDItYWFmY2FmZjAyYmYwIiwidHlwZSI6IlBST0pFQ1QiLCJpYXQiOjE3MzM1Nzk4MTQsImV4cCI6NDg4OTMzOTgxNH0.wtdDC8igT0VaM4S53rksbRJmyN_2IP-SAbAA2BckCgw',
+            apiKey: process.env.NEXT_PUBLIC_MORALIS_API_KEY || '',
           });
         }
 
@@ -60,12 +63,59 @@ export default function Home() {
           address,
         });
 
-        const tokenData: Token[] = response.toJSON().result.map((token: any) => ({
-          ...token,
+        let tokenData: Token[] = response.toJSON().result.map((token) => ({
           token_address: token.token_address || "",
+          symbol: token.symbol || "",
+          name: token.name || "",
+          logo: token.logo || "",
+          thumbnail: token.thumbnail,
+          decimals: token.decimals || 0,
+          balance: token.balance || "0",
+          possible_spam: token.possible_spam || false,
+          verified_contract: token.verified_contract,
+          balance_formatted: token.balance_formatted,
+          usd_price: token.usd_price ? parseFloat(token.usd_price) : 0,
+          usd_price_24hr_percent_change: token.usd_price_24hr_percent_change ? parseFloat(token.usd_price_24hr_percent_change) : 0,
+          usd_price_24hr_usd_change: token.usd_price_24hr_usd_change,
+          usd_value: token.usd_value,
+          usd_value_24hr_usd_change: token.usd_value_24hr_usd_change,
+          native_token: token.native_token,
+          portfolio_percentage: token.portfolio_percentage,
         }));
 
-        setTokens(tokenData);
+
+        if (tokenData.length > 0) {
+          setTokenUsd(tokenData[0].usd_price.toString());
+        }
+
+
+        // If chainId is 11155111, fetch ETH price from mainnet (chainId 1)
+        if (chainId === 11155111 || chainId === 17000) {
+          const ethResponse = await Moralis.EvmApi.wallets.getWalletTokenBalancesPrice({
+            address,
+            chain: '0x1', // Chain ID for Ethereum Mainnet
+          });
+
+          const ethPrice = ethResponse.toJSON().result.find((token) => token.symbol === 'ETH')?.usd_price;
+          console.log('ETH Price (from Mainnet):', ethPrice);
+
+          // Optionally, you can store this price for display or calculations
+          setTokenUsd(ethPrice);
+
+          // Update the ETH token's price with mainnet price for Sepolia
+          tokenData = tokenData.map(token => {
+            if (token.symbol === 'ETH' && ethPrice) {
+              return {
+                ...token,
+                usd_price: parseFloat(ethPrice),
+                usd_value: parseFloat(ethPrice) * parseFloat(token.balance_formatted || '0')
+              };
+            }
+            return token;
+          });
+        }
+
+        // setTokens(tokenData);
       } catch (e) {
         console.error(e);
       }
@@ -77,7 +127,16 @@ export default function Home() {
     if (fetchTokenBalances) {
       fetchTokenBalances();
     }
-  }, [fetchTokenBalances]);
+  }, [data, fetchTokenBalances]);
+
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      refetch();
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <div className="min-h-screen bg-gray-900">
@@ -93,15 +152,19 @@ export default function Home() {
               <>
                 <WalletCard
                   address={address!} // The wallet address
-                // balance={balanceData?.formatted || "0.00"} // The balance in human-readable format
-                // symbol={balanceData?.symbol || "ETH"} // The token symbol
+                  ethPrice={tokenUsd} // ETH price for Sepolia
+                  chainId={chainId}
                 />
-                <TokenList tokens={tokens} />
+                {/* <TokenList tokens={tokens} /> */}
               </>
             )
           ) : (
             <WalletCard
               address={address!} // The wallet address
+              ethPrice={tokenUsd} // ETH price for Sepolia
+              chainId={chainId}
+
+
             // balance="0.00" // Default balance when not connected
             // symbol="ETH" // Default token symbol
             />
